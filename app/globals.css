@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-gray-200;
+  }
+  body {
+    @apply bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white min-h-screen;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/10 backdrop-blur-md border border-white/20 rounded-lg;
+  }
+  
+  .glass-hover {
+    @apply hover:bg-white/20 transition-all duration-300;
+  }
+  
+  .inventory-slot {
+    @apply glass glass-hover p-4 aspect-square flex flex-col items-center justify-center relative overflow-hidden;
+  }
+  
+  .inventory-slot::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20 opacity-0 transition-opacity duration-300;
+  }
+  
+  .inventory-slot:hover::before {
+    @apply opacity-100;
+  }
+}

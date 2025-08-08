@@ -1,0 +1,180 @@
+meta:
+  name: Abracadabra
+  tagline: Make Magic
+  category: wildcard
+  public_repo: true
+  license: MIT
+
+tech:
+  frontend: nextjs
+  styling: tailwind
+  backend: nextjs-route-handlers
+  db: prisma-sqlite        # switchable to Postgres later
+  lang: typescript
+  ai_provider_env: PLANNER_MODEL
+
+goals:
+  - Turn any costume idea (text or image) into a shoppable outfit.
+  - Enforce hard constraints: price, size, gender.
+  - Show items in a videogame-style inventory grid (glassmorphism).
+  - Click out to product pages; allow save/share via public slug.
+
+non_goals:
+  - No group mode (bachelor/ette) in v1.
+  - No auth required. No checkout on site.
+
+constraints:
+  hard:
+    - price
+    - size
+    - gender
+  optional:
+    - color_bias
+    - vibe_tags   # e.g., "minimal", "goth", "rave"
+
+data_models:
+  - name: Kit
+    fields:
+      - { name: id, type: string, pk: true }
+      - { name: title, type: string }
+      - { name: theme, type: string }
+      - { name: slug, type: string, unique: true }
+      - { name: createdAt, type: datetime, default: now }
+
+  - name: KitItem
+    fields:
+      - { name: id, type: string, pk: true }
+      - { name: kitId, type: string, fk: Kit.id }
+      - { name: slot, type: enum, values: [top, bottom, footwear, accessory, prop, makeup] }
+      - { name: label, type: string }
+      - { name: vendor, type: string }         # e.g., amazon
+      - { name: affiliateUrl, type: string }
+      - { name: imageUrl, type: string }
+      - { name: price, type: number }
+      - { name: size, type: string }
+
+  - name: ClickOut
+    fields:
+      - { name: id, type: string, pk: true }
+      - { name: kitId, type: string, fk: Kit.id }
+      - { name: itemId, type: string, fk: KitItem.id }
+      - { name: referer, type: string }
+      - { name: ts, type: datetime, default: now }
+
+planner_contract:  # JSON schema that the planner must return
+  theme: string
+  constraints:
+    budget_total: number
+    gender: enum[womens, mens, unisex]
+    sizes:
+      top: string
+      bottom: string
+      shoe: string
+    color_bias: string[]
+  items:
+    - slot: enum[top, bottom, footwear, accessory, prop, makeup]
+      label: string
+      query: string[]       # search keywords for catalog
+      target_price: number
+      size: string
+      alt:
+        - label: string
+          query: string[]
+          target_price: number
+      notes: string
+
+pages:
+  - route: /
+    name: Home
+    components:
+      - SizeForm
+      - BudgetInput
+      - PromptBox            # text + image upload
+      - GenerateButton
+
+  - route: /results
+    name: Results
+    components:
+      - InventoryGrid        # slots: head, torso, legs, footwear, accessories
+      - ReplaceMenu          # swap suggestions while honoring constraints
+
+  - route: /kit/[slug]
+    name: PublicKit
+    components:
+      - InventoryGrid
+      - ShareBar
+
+api:
+  - method: POST
+    route: /api/plan
+    description: Accept user input (prompt + sizes + budget + gender), call planner, return planner_contract JSON.
+    input:
+      prompt: string
+      image: base64?         # optional
+      constraints:
+        budget_total: number
+        gender: string
+        sizes:
+          top: string
+          bottom: string
+          shoe: string
+        color_bias: string[]?
+    output: planner_contract
+
+  - method: POST
+    route: /api/search
+    description: For each planner item, search catalog provider (mock in v1) and return best-matching products.
+    input:
+      items: planner_contract.items
+    output:
+      products:
+        - slot: string
+          chosen:
+            label: string
+            price: number
+            size: string
+            affiliateUrl: string
+            imageUrl: string
+          alternatives:
+            - label: string
+              price: number
+              affiliateUrl: string
+              imageUrl: string
+
+  - method: POST
+    route: /api/kits
+    description: Save a kit with chosen items, return slug.
+
+  - method: GET
+    route: /api/kits/[id]
+    description: Fetch single kit (internal).
+
+  - method: GET
+    route: /api/kit-by-slug/[slug]
+    description: Public kit fetch for sharing page.
+
+catalog:
+  provider: mock             # switchable: mock | amazon
+  mock_seed_file: scripts/seed.ts
+  amazon:
+    todo: true               # implement PA-API when keys available
+    env:
+      - AMAZON_ASSOCIATE_TAG
+      - AMAZON_ACCESS_KEY
+      - AMAZON_SECRET_KEY
+      - AMAZON_PARTNER_TAG
+      - AMAZON_REGION
+
+ui:
+  theme:
+    look: glassmorphism
+    vibe: videogame_inventory
+    palette: slate_neutral
+    motion: subtle
+  components:
+    - InventoryGrid
+    - ItemCard
+    - SizeForm
+    - BudgetInput
+    - ReplaceMenu
+    - Toaster

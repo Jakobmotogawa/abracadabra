@@ -1,0 +1,45 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Kit {
+  id        String   @id @default(cuid())
+  title     String
+  theme     String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  
+  items     KitItem[]
+  clickOuts ClickOut[]
+}
+
+model KitItem {
+  id          String @id @default(cuid())
+  kitId       String
+  slot        String // Changed from Slot enum to String for SQLite compatibility
+  label       String
+  vendor      String
+  affiliateUrl String
+  imageUrl    String
+  price       Float
+  size        String
+  
+  kit       Kit        @relation(fields: [kitId], references: [id], onDelete: Cascade)
+  clickOuts ClickOut[]
+}
+
+model ClickOut {
+  id       String   @id @default(cuid())
+  kitId    String
+  itemId   String
+  referer  String
+  ts       DateTime @default(now())
+  
+  kit  Kit     @relation(fields: [kitId], references: [id], onDelete: Cascade)
+  item KitItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+}
